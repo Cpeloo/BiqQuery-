@@ -1,0 +1,109 @@
+SELECT
+  session_date,
+  session_start_time,
+  landing_page,
+  source,
+  medium,
+  campaign,
+  device,
+  language,
+  operating_system,
+  '1. Session Start' AS funnel_step,
+  step_1_session_start AS users
+FROM `project-279cf552-637b-40cd-b5c.project1_data.ga4_session_dashboard`
+
+UNION ALL
+
+SELECT
+  session_date,
+  session_start_time,
+  landing_page,
+  source,
+  medium,
+  campaign,
+  device,
+  language,
+  operating_system,
+  '2. Product View' AS funnel_step,
+  step_2_view_item AS users
+FROM `project-279cf552-637b-40cd-b5c.project1_data.ga4_session_dashboard`
+
+UNION ALL
+
+SELECT
+  session_date,
+  session_start_time,
+  landing_page,
+  source,
+  medium,
+  campaign,
+  device,
+  language,
+  operating_system,
+  '3. Add to Cart' AS funnel_step,
+  step_3_add_to_cart AS users
+FROM `project-279cf552-637b-40cd-b5c.project1_data.ga4_session_dashboard`
+
+UNION ALL
+
+SELECT
+  session_date,
+  session_start_time,
+  landing_page,
+  source,
+  medium,
+  campaign,
+  device,
+  language,
+  operating_system,
+  '4. Begin Checkout' AS funnel_step,
+  step_4_begin_checkout AS users
+FROM `project-279cf552-637b-40cd-b5c.project1_data.ga4_session_dashboard`
+
+UNION ALL
+
+SELECT
+  session_date,
+  session_start_time,
+  landing_page,
+  source,
+  medium,
+  campaign,
+  device,
+  language,
+  operating_system,
+  '5. Add Shipping Info' AS funnel_step,
+  step_5_add_shipping_info AS users
+FROM `project-279cf552-637b-40cd-b5c.project1_data.ga4_session_dashboard`
+
+UNION ALL
+
+SELECT
+  session_date,
+  session_start_time,
+  landing_page,
+  source,
+  medium,
+  campaign,
+  device,
+  language,
+  operating_system,
+  '6. Add Payment Info' AS funnel_step,
+  step_6_add_payment_info AS users
+FROM `project-279cf552-637b-40cd-b5c.project1_data.ga4_session_dashboard`
+
+UNION ALL
+
+SELECT
+  session_date,
+  session_start_time,
+  landing_page,
+  source,
+  medium,
+  campaign,
+  device,
+  language,
+  operating_system,
+  '7. Purchase' AS funnel_step,
+  step_7_purchase AS users
+FROM `project-279cf552-637b-40cd-b5c.project1_data.ga4_session_dashboard`;
