@@ -1,0 +1,226 @@
+WITH events AS (
+
+  SELECT
+    PARSE_DATE('%Y%m%d', event_date) AS event_date,
+    TIMESTAMP_MICROS(event_timestamp) AS event_time,
+    user_pseudo_id,
+    event_name,
+
+    -- Session ID
+    (
+      SELECT value.int_value
+      FROM UNNEST(event_params)
+      WHERE key = 'ga_session_id'
+    ) AS ga_session_id,
+
+    -- Page
+    (
+      SELECT value.string_value
+      FROM UNNEST(event_params)
+      WHERE key = 'page_location'
+    ) AS page_location,
+
+    -- Traffic Source
+    (
+      SELECT value.string_value
+      FROM UNNEST(event_params)
+      WHERE key = 'source'
+    ) AS source,
+
+    (
+      SELECT value.string_value
+      FROM UNNEST(event_params)
+      WHERE key = 'medium'
+    ) AS medium,
+
+    (
+      SELECT value.string_value
+      FROM UNNEST(event_params)
+      WHERE key = 'campaign'
+    ) AS campaign,
+
+    -- Device
+    device.category AS device,
+    device.language AS language,
+    device.operating_system AS operating_system,
+
+    -- Ecommerce
+    ecommerce.transaction_id AS transaction_id,
+    ecommerce.purchase_revenue_in_usd AS revenue
+
+  FROM
+    `bigquery-public-data.ga4_obfuscated_sample_ecommerce.events_*`
+
+  WHERE
+    (
+      SELECT value.int_value
+      FROM UNNEST(event_params)
+      WHERE key = 'ga_session_id'
+    ) IS NOT NULL
+),
+
+sessions AS (
+
+  SELECT
+
+    -- Session
+    CONCAT(
+      user_pseudo_id,
+      '-',
+      CAST(ga_session_id AS STRING)
+    ) AS session_id,
+
+    -- Date
+    MIN(event_date) AS session_date,
+
+    -- Gerçek session_start zamanı
+    MIN(
+      IF(
+        event_name = 'session_start',
+        event_time,
+        NULL
+      )
+    ) AS session_start_time,
+
+    -- Landing Page
+    ARRAY_AGG(
+      page_location IGNORE NULLS
+      ORDER BY event_time
+      LIMIT 1
+    )[SAFE_OFFSET(0)] AS landing_page,
+
+    -- Traffic
+    ARRAY_AGG(
+      source IGNORE NULLS
+      ORDER BY event_time
+      LIMIT 1
+    )[SAFE_OFFSET(0)] AS source,
+
+    ARRAY_AGG(
+      medium IGNORE NULLS
+      ORDER BY event_time
+      LIMIT 1
+    )[SAFE_OFFSET(0)] AS medium,
+
+    ARRAY_AGG(
+      campaign IGNORE NULLS
+      ORDER BY event_time
+      LIMIT 1
+    )[SAFE_OFFSET(0)] AS campaign,
+
+    -- Device
+    ARRAY_AGG(
+      device IGNORE NULLS
+      ORDER BY event_time
+      LIMIT 1
+    )[SAFE_OFFSET(0)] AS device,
+
+    ARRAY_AGG(
+      language IGNORE NULLS
+      ORDER BY event_time
+      LIMIT 1
+    )[SAFE_OFFSET(0)] AS language,
+
+    ARRAY_AGG(
+      operating_system IGNORE NULLS
+      ORDER BY event_time
+      LIMIT 1
+    )[SAFE_OFFSET(0)] AS operating_system,
+
+    -- =========================
+    -- 7 ADIMLI FUNNEL
+    -- =========================
+
+    MAX(
+      IF(event_name = 'session_start', 1, 0)
+    ) AS step_1_session_start,
+
+    MAX(
+      IF(event_name = 'view_item', 1, 0)
+    ) AS step_2_view_item,
+
+    MAX(
+      IF(event_name = 'add_to_cart', 1, 0)
+    ) AS step_3_add_to_cart,
+
+    MAX(
+      IF(event_name = 'begin_checkout', 1, 0)
+    ) AS step_4_begin_checkout,
+
+    MAX(
+      IF(event_name = 'add_shipping_info', 1, 0)
+    ) AS step_5_add_shipping_info,
+
+    MAX(
+      IF(event_name = 'add_payment_info', 1, 0)
+    ) AS step_6_add_payment_info,
+
+    MAX(
+      IF(event_name = 'purchase', 1, 0)
+    ) AS step_7_purchase,
+
+    -- =========================
+    -- ORDERS
+    -- =========================
+
+    COUNT(
+      DISTINCT IF(
+        event_name = 'purchase',
+        transaction_id,
+        NULL
+      )
+    ) AS orders,
+
+    -- =========================
+    -- REVENUE
+    -- =========================
+
+    SUM(
+      IF(
+        event_name = 'purchase',
+        COALESCE(revenue, 0),
+        0
+      )
+    ) AS revenue
+
+  FROM events
+
+  GROUP BY
+    user_pseudo_id,
+    ga_session_id
+)
+
+SELECT
+
+  session_id,
+  session_date,
+  session_start_time,
+
+  landing_page,
+
+  source,
+  medium,
+  campaign,
+
+  device,
+  language,
+  operating_system,
+
+  step_1_session_start,
+  step_2_view_item,
+  step_3_add_to_cart,
+  step_4_begin_checkout,
+  step_5_add_shipping_info,
+  step_6_add_payment_info,
+  step_7_purchase,
+
+  orders,
+  revenue
+
+FROM sessions
+
+WHERE session_start_time IS NOT NULL
+
+ORDER BY
+  session_date,
+  session_start_time;
